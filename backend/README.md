@@ -12,17 +12,18 @@ A Flask REST API backend that connects to Supabase for managing player data.
 Create a table named `players` in your Supabase database with the following SQL:
 
 ```sql
-CREATE TABLE players (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
-  character TEXT,
+  username TEXT NOT NULL,
+  character TEXT DEFAULT 'explorer',
   xp INTEGER DEFAULT 0,
-  leaderboard_position INTEGER
+  level INTEGER DEFAULT 1,
+  streak INTEGER DEFAULT 1
 );
 
 -- Create an index on xp for faster leaderboard queries
-CREATE INDEX idx_players_xp ON players(xp DESC);
+CREATE INDEX idx_profiles_xp ON profiles(xp DESC);
 ```
 
 ## Installation

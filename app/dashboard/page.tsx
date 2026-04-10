@@ -10,8 +10,7 @@ import LearningProgress from "@/components/dashboard/LearningProgress";
 import FinanceNews from "@/components/dashboard/FinanceNews";
 import MiniLeaderboard from "@/components/dashboard/MiniLeaderboard";
 import { calculateLevelFromXP } from "@/components/dashboard/ProgressBar";
-
-const API_BASE_URL = "http://127.0.0.1:5000";
+import { getProfile, getLeaderboard } from "@/lib/api";
 
 const characterImages: Record<string, string> = {
   explorer: "/characters/explorer.png",
@@ -67,22 +66,13 @@ export default function Dashboard() {
 
         console.log("Fetching profile for user_id:", parsedUser.user_id);
 
-        // Step 3: Fetch profile from Flask backend using user_id
-        const profileRes = await fetch(
-          `${API_BASE_URL}/api/profile?user_id=${parsedUser.user_id}`
-        );
-
-        if (!profileRes.ok) {
-          const errorText = await profileRes.text();
-          throw new Error(`Failed to fetch profile: ${errorText}`);
-        }
-
-        const profileData = await profileRes.json();
+        // Step 3: Fetch profile utilizing mock fallback if backend is unreachable
+        const profileData = await getProfile(parsedUser.user_id);
         console.log("Profile data received:", profileData);
 
         if (!isMounted) return;
 
-        // Step 4: Set user state with backend data
+        // Step 4: Set user state
         setUser({
           user_id: profileData.id || parsedUser.user_id,
           name: profileData.username || "Player",
@@ -93,22 +83,16 @@ export default function Dashboard() {
           streak: profileData.streak || 1,
         });
 
-        // Step 5: Fetch leaderboard
-        const leaderboardRes = await fetch(`${API_BASE_URL}/api/leaderboard`);
-
-        if (!leaderboardRes.ok) {
-          throw new Error("Failed to fetch leaderboard");
-        }
-
-        const leaderboardData = await leaderboardRes.json();
+        // Step 5: Fetch leaderboard utilizing mock fallback
+        const leaderboardData = await getLeaderboard();
         console.log("Leaderboard data received:", leaderboardData);
 
         // Step 6: Format leaderboard data
         const formattedLeaderboard: LeaderboardEntry[] = leaderboardData.map(
           (entry: any, index: number) => ({
-            name: entry.username,
+            name: entry.username || entry.name,
             xp: entry.xp,
-            leaderboard_position: index + 1,
+            leaderboard_position: entry.position || index + 1,
           })
         );
 
@@ -133,15 +117,12 @@ export default function Dashboard() {
       // Only refresh leaderboard, not the entire dashboard
       const refreshLeaderboard = async () => {
         try {
-          const leaderboardRes = await fetch(`${API_BASE_URL}/api/leaderboard`);
-          if (!leaderboardRes.ok) return;
-
-          const leaderboardData = await leaderboardRes.json();
+          const leaderboardData = await getLeaderboard();
           const formattedLeaderboard: LeaderboardEntry[] = leaderboardData.map(
             (entry: any, index: number) => ({
-              name: entry.username,
+              name: entry.username || entry.name,
               xp: entry.xp,
-              leaderboard_position: index + 1,
+              leaderboard_position: entry.position || index + 1,
             })
           );
 
@@ -174,13 +155,7 @@ export default function Dashboard() {
         const parsedUser = JSON.parse(storedUser);
         if (!parsedUser.user_id) return;
 
-        const profileRes = await fetch(
-          `${API_BASE_URL}/api/profile?user_id=${parsedUser.user_id}`
-        );
-
-        if (!profileRes.ok) return;
-
-        const profileData = await profileRes.json();
+        const profileData = await getProfile(parsedUser.user_id);
 
         if (isMounted) {
           setUser(prev => prev ? {
@@ -203,17 +178,6 @@ export default function Dashboard() {
     };
   }, []); // Empty array - runs once on mount
 
-  // Loading state
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen pt-20 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-400">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Error state
   if (error) {
     return (
@@ -226,6 +190,17 @@ export default function Dashboard() {
           >
             Return to Home
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen pt-20 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-400">Loading dashboard...</p>
         </div>
       </div>
     );
